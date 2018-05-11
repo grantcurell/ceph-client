@@ -16,6 +16,16 @@
 #include <linux/ceph/mdsmap.h>
 #include <linux/ceph/auth.h>
 
+#define CEPHFS_FEATURE_MIMIC    0
+
+#define CEPHFS_FEATURES_ALL {           \
+  CEPHFS_FEATURE_MIMIC,                 \
+}
+
+#define CEPHFS_FEATURES_CLIENT_SUPPORTED CEPHFS_FEATURES_ALL
+#define CEPHFS_FEATURES_CLIENT_REQUIRED {}
+
+
 /*
  * Some lock dependencies:
  *
