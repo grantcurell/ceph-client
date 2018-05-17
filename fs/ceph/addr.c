@@ -772,6 +772,17 @@ static void writepages_finish(struct ceph_osd_request *req)
 		ceph_release_pages(osd_data->pages, num_pages);
 	}
 
+	if (rc < 0 && total_pages) {
+		/*
+		 * In the case of error, this function may directly get
+		 * called by the thread that does writeback. The writeback
+		 * thread should not drop inode's last reference. Otherwise
+		 * iput_final() may call inode_wait_for_writeback(), which
+		 * waits on writeback.
+		 */
+		ihold(inode);
+	}
+
 	ceph_put_wrbuffer_cap_refs(ci, total_pages, snapc);
 
 	osd_data = osd_req_op_extent_osd_data(req, 0);
@@ -781,6 +792,16 @@ static void writepages_finish(struct ceph_osd_request *req)
 	else
 		kfree(osd_data->pages);
 	ceph_osdc_put_request(req);
+
+	if (rc < 0 && total_pages) {
+		for (;;) {
+			if (atomic_add_unless(&inode->i_count, -1, 1))
+				break;
+			/* let writeback work drop the last reference */
+			if (queue_work(fsc->wb_wq, &ci->i_wb_work))
+				break;
+		}
+	}
 }
 
 /*

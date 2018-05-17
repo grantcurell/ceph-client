@@ -1752,9 +1752,17 @@ static void ceph_writeback_work(struct work_struct *work)
 	struct ceph_inode_info *ci = container_of(work, struct ceph_inode_info,
 						  i_wb_work);
 	struct inode *inode = &ci->vfs_inode;
+	int wrbuffer_refs;
 
-	dout("writeback %p\n", inode);
-	filemap_fdatawrite(&inode->i_data);
+	spin_lock(&ci->i_ceph_lock);
+	wrbuffer_refs = ci->i_wrbuffer_ref;
+	spin_unlock(&ci->i_ceph_lock);
+
+	if (wrbuffer_refs) {
+		dout("writeback %p\n", inode);
+		filemap_fdatawrite(&inode->i_data);
+	}
+
 	iput(inode);
 }
 
